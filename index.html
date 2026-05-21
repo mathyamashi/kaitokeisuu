@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  
+  <title>2次方程式の解と係数の関係ドリル</title>
+  <meta name="description" content="高校数学の重要テーマ「2次方程式の解と係数の関係」を効率よくマスターするための演習ドリルアプリです。基本から発展的な対称式の応用まで、わかりやすい段階ステップ解説と自動採点機能で学習をサポートします。" />
+
+  <!-- Preconnect and Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans JP', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React and ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel Standalone (In-browser JSX Compiler for instant execution) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- KaTeX for Beautiful Math Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+    .katex { font-size: 1.1em; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Smooth CSS Animations and Transitions */
+    .fade-enter { opacity: 0; transform: translateY(10px); }
+    .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 300ms, transform 300ms; }
+    .scale-enter { transform: scale(0.98); opacity: 0; }
+    .scale-enter-active { transform: scale(1); opacity: 1; transition: transform 250ms ease-out, opacity 250ms ease-out; }
+  </style>
+</head>
+<body class="bg-[#F5F5F7] text-[#1D1D1F] antialiased min-h-screen">
+  <div id="root"></div>
+
+  <!-- React Logic & Markup Container -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    // --- Types and Enums ---
+    const Difficulty = {
+      BASIC: 'basic',
+      ADVANCED: 'advanced'
+    };
+
+    const EquationType = {
+      QUADRATIC: 'quadratic',
+      CUBIC: 'cubic'
+    };
+
+    // --- Mathematics Generation Logic (Originally from mathUtils.ts) ---
+    function gcd(a, b) {
+      return b === 0 ? Math.abs(a) : gcd(b, a % b);
+    }
+
+    function simplifyRational(n, d) {
+      if (d === 0) return { n, d: 1 };
+      if (d < 0) { n = -n; d = -d; }
+      const common = gcd(n, d);
+      return { n: n / common, d: d / common };
+    }
+
+    function formatRational(n, d) {
+      const { n: sn, d: sd } = simplifyRational(n, d);
+      if (sd === 1) return sn.toString();
+      if (sn < 0) {
+        return `-\\frac{${Math.abs(sn)}}{${sd}}`;
+      }
+      return `\\frac{${sn}}{${sd}}`;
+    }
+
+    function generateSubQuestion(expression, a, b, c) {
+      const val = expression.calc();
+      const expected = formatRational(val.n, val.d);
+      
+      const options = new Set();
+      options.add(expected);
+      
+      const distractors = new Set();
+      distractors.add(formatRational(-val.n, val.d));
+      
+      if (expression.text.includes('\\alpha + \\beta')) {
+        distractors.add(formatRational(b, a));
+        distractors.add(formatRational(-c, a));
+        distractors.add(formatRational(c, a));
+      } else if (expression.text.includes('\\alpha \\beta') || expression.text.includes('\\alpha\\beta')) {
+        distractors.add(formatRational(-c, a));
+        distractors.add(formatRational(-b, a));
+        distractors.add(formatRational(b, a));
+      }
+
+      if (a !== 1) {
+        distractors.add((-b).toString());
+        distractors.add(c.toString());
+      }
+
+      const baseDistractors = Array.from(distractors);
+      for (const s of baseDistractors) {
+        if (options.size >= 4) break;
+        if (s !== expected) options.add(s);
+      }
+
+      let attempts = 0;
+      while (options.size < 4 && attempts < 50) {
+        attempts++;
+        const offset = Math.floor(Math.random() * 6) - 3;
+        if (offset === 0) continue;
+        const dStr = formatRational(val.n + offset * val.d, val.d);
+        if (dStr !== expected) options.add(dStr);
+      }
+
+      return {
+        expression: expression.text,
+        expectedAnswer: expected,
+        options: Array.from(options).sort(() => Math.random() - 0.5)
+      };
+    }
+
+    function generateQuestionsSet(type, difficulty) {
+      if (difficulty === Difficulty.BASIC) {
+        return Array.from({ length: 10 }, () => generateQuestion(type, difficulty));
+      } else {
+        const id = Math.random().toString(36).substring(7);
+        const a = 1;
+        const allowed = [-4, -3, -2, -1, 1, 2, 3, 4];
+        const b = allowed[Math.floor(Math.random() * allowed.length)];
+        const c = allowed[Math.floor(Math.random() * allowed.length)];
+        
+        const expressions = [
+          { text: '\\alpha^2 + \\beta^2', calc: () => ({ n: b * b - 2 * c, d: 1 }) },
+          { text: '(\\alpha - \\beta)^2', calc: () => ({ n: b * b - 4 * c, d: 1 }) },
+          { text: '\\alpha^3 + \\beta^3', calc: () => ({ n: -b * (b * b - 3 * c), d: 1 }) },
+          { text: '\\frac{1}{\\alpha} + \\frac{1}{\\beta}', calc: () => ({ n: -b, d: c }) },
+          { text: '\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}', calc: () => ({ n: b * b - 2 * c, d: c }) },
+          { text: '(\\alpha + 1)(\\beta + 1)', calc: () => ({ n: c - b + 1, d: 1 }) },
+          { text: '\\alpha^2\\beta + \\alpha\\beta^2', calc: () => ({ n: -b * c, d: 1 }) },
+          { text: '\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2}', calc: () => ({ n: b * b - 2 * c, d: c * c }) }
+        ];
+
+        const shuffled = expressions.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 3);
+
+        const subQuestions = [
+          generateSubQuestion({ text: '\\alpha + \\beta', calc: () => ({ n: -b, d: a }) }, a, b, c),
+          generateSubQuestion({ text: '\\alpha\\beta', calc: () => ({ n: c, d: a }) }, a, b, c),
+          ...selected.map(expr => generateSubQuestion(expr, a, b, c))
+        ];
+
+        return [{
+          id,
+          type: EquationType.QUADRATIC,
+          difficulty,
+          a, b, c,
+          subQuestions
+        }];
+      }
+    }
+
+    function generateQuestion(type, difficulty) {
+      const id = Math.random().toString(36).substring(7);
+      const aChoices = [1, 1, 1, 2, 3];
+      const a = aChoices[Math.floor(Math.random() * aChoices.length)];
+      const allowed = [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5];
+      const b = allowed[Math.floor(Math.random() * allowed.length)];
+      const c = allowed[Math.floor(Math.random() * allowed.length)];
+
+      const subQuestions = [
+        generateSubQuestion({ text: '\\alpha + \\beta', calc: () => ({ n: -b, d: a }) }, a, b, c),
+        generateSubQuestion({ text: '\\alpha\\beta', calc: () => ({ n: c, d: a }) }, a, b, c)
+      ];
+
+      return {
+        id,
+        type: EquationType.QUADRATIC,
+        difficulty,
+        a, b, c,
+        subQuestions
+      };
+    }
+
+    // --- Math Rendering Component ---
+    function MathView({ math, block = false, className = "" }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current) {
+          try {
+            katex.render(math, ref.current, {
+              displayMode: block,
+              throwOnError: false
+            });
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }, [math, block]);
+      return <span ref={ref} className={className} />;
+    }
+
+    // --- Markdown/Static Explanation View (HTML-safe replacements) ---
+    function ExplanationView({ text }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current) {
+          renderMathInElement(ref.current, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+          });
+        }
+      }, [text]);
+
+      const formatted = text.split('\n').map((line, i) => {
+        if (line.startsWith('### ')) {
+          return <h4 key={i} className="font-extrabold text-[#111827] mt-3 mb-1 text-xs">{line.replace('### ', '')}</h4>;
+        }
+        return <p key={i} className="my-1.5 leading-relaxed text-slate-700 text-[11px]">{line}</p>;
+      });
+
+      return <div ref={ref} className="space-y-1">{formatted}</div>;
+    }
+
+    // --- Utility Icons as Visual SVG Components ---
+    const SVGIcon = {
+      ArrowLeft: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      ),
+      Calculator: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+      ),
+      Settings2: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+      ),
+      ChevronRight: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
+      ),
+      CheckCircle2: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      ),
+      XCircle: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+      ),
+      RefreshCcw: ({ size = 16, className = "" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      )
+    };
+
+    function formatEquationText(q) {
+      const termA = q.a === 1 ? 'x^2' : q.a === -1 ? '-x^2' : `${q.a}x^2`;
+      const termB = q.b === 0 ? '' : q.b === 1 ? '+ x' : q.b === -1 ? '- x' : q.b > 0 ? `+ ${q.b}x` : `- ${Math.abs(q.b)}x`;
+      const termC = q.c === 0 ? '' : q.c > 0 ? `+ ${q.c}` : `- ${Math.abs(q.c)}`;
+      return `${termA} ${termB} ${termC} = 0`;
+    }
+
+    function getStaticExplanation(q, step) {
+      const { a, b, c } = q;
+      const baseRel = `2次方程式 $${formatEquationText(q)}$ において、解と係数の関係より：\n` +
+        `$\\alpha + \\beta = -\\frac{b}{a} = -\\frac{${b}}{${a}} = ${formatRational(-b, a)}$\n` +
+        `$\\alpha\\beta = \\frac{c}{a} = ${formatRational(c, a)}$ です。\n\n`;
+
+      const currentSub = q.subQuestions[step];
+      const exprText = currentSub.expression;
+      const ansVal = currentSub.expectedAnswer;
+
+      if (exprText.includes('\\alpha^2 + \\beta^2')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `$\\alpha^2 + \\beta^2 = (\\alpha + \\beta)^2 - 2\\alpha\\beta$ を利用します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `公式にそれぞれ値を代入します：\n` +
+          `$= (${formatRational(-b, a)})^2 - 2 \\times (${formatRational(c, a)})$\n` +
+          `$= ${formatRational(b*b, a*a)} - ${formatRational(2*c, a)}$\n` +
+          `$= ${ansVal}$`;
+      }
+      if (exprText.includes('(\\alpha - \\beta)^2')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `$(\\alpha - \\beta)^2 = (\\alpha + \\beta)^2 - 4\\alpha\\beta$ を利用します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `公式に値を代入し計算します：\n` +
+          `$= (${formatRational(-b, a)})^2 - 4 \\times (${formatRational(c, a)})$\n` +
+          `$= ${formatRational(b*b, a*a)} - ${formatRational(4*c, a)}$\n` +
+          `$= ${ansVal}$`;
+      }
+      if (exprText.includes('\\alpha^3 + \\beta^3')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `$\\alpha^3 + \\beta^3 = (\\alpha + \\beta)^3 - 3\\alpha\\beta(\\alpha + \\beta)$ を利用します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `求めた和と積をそれぞれ代入します：\n` +
+          `$= (${formatRational(-b, a)})^3 - 3 \\times (${formatRational(c, a)}) \\times (${formatRational(-b, a)})$\n` +
+          `$= ${ansVal}$`;
+      }
+      if (exprText.includes('\\frac{1}{\\alpha} + \\frac{1}{\\beta}')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `分母をそろえるために通分（共通の分母にする）を行います：\n` +
+          `$\\frac{1}{\\alpha} + \\frac{1}{\\beta} = \\frac{\\alpha + \\beta}{\\alpha\\beta}$ と変形できます。\n\n` +
+          `### 【計算プロセス】\n` +
+          `分数の形にして計算します：\n` +
+          `$= (${formatRational(-b, a)}) \\div (${formatRational(c, a)}) = ${ansVal}$`;
+      }
+      if (exprText.includes('\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `通分して変形を行います：\n` +
+          `$\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta} = \\frac{\\alpha^2 + \\beta^2}{\\alpha\\beta} = \\frac{(\\alpha + \\beta)^2 - 2\\alpha\\beta}{\\alpha\\beta}$ と変形します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `和と積の値をそれぞれ代入して計算すると、値は $${ansVal}$ となります。`;
+      }
+      if (exprText.includes('(\\alpha + 1)(\\beta + 1)')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `式を展開して和と積の形を作ります：\n` +
+          `$(\\alpha + 1)(\\beta + 1) = \\alpha\\beta + (\\alpha + \\beta) + 1$ と展開します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `数値を代入します：\n` +
+          `$= (${formatRational(c, a)}) + (${formatRational(-b, a)}) + 1$\n` +
+          `$= ${ansVal}$`;
+      }
+      if (exprText.includes('\\alpha^2\\beta + \\alpha\\beta^2')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `共通の因数 $\\alpha\\beta$ でくくり出します：\n` +
+          `$\\alpha^2\\beta + \\alpha\\beta^2 = \\alpha\\beta(\\alpha + \\beta)$ と因数分解します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `積と和の値を代入してかけ合わせます：\n` +
+          `$= (${formatRational(c, a)}) \\times (${formatRational(-b, a)}) = ${ansVal}$`;
+      }
+      if (exprText.includes('\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2}')) {
+        return baseRel + `### 【式変形の公式】\n` +
+          `通分します：\n` +
+          `$\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2} = \\frac{\\alpha^2 + \\beta^2}{(\\alpha\\beta)^2} = \\frac{(\\alpha+\\beta)^2 - 2\\alpha\\beta}{(\\alpha\\beta)^2}$ と変形します。\n\n` +
+          `### 【計算プロセス】\n` +
+          `値を代入し計算を整理すると、値は $${ansVal}$ になります。`;
+      }
+
+      // Default formula-bound feedback fallback
+      return baseRel + `### 【解説】\n` +
+        `求める値は和 $\\alpha + \\beta = ${formatRational(-b, a)}$ と、積 $\\alpha\\beta =  ${formatRational(c, a)}$ を式変形に適用して算出します。\n` +
+        `正解は $${ansVal}$ です。`;
+    }
+
+    // --- Main Application UI ---
+    function App() {
+      const [gameState, setGameState] = useState('menu'); // 'menu' | 'drill' | 'summary'
+      const [difficulty, setDifficulty] = useState(Difficulty.BASIC);
+      const [questions, setQuestions] = useState([]);
+      const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+      const [currentStep, setCurrentStep] = useState(0);
+      const [drillScore, setDrillScore] = useState(0);
+      const [history, setHistory] = useState([]);
+      const [feedback, setFeedback] = useState(null);
+      const [judgment, setJudgment] = useState(null); // 'correct' | 'incorrect' | null
+
+      const currentQuestion = useMemo(() => {
+        return questions[currentQuestionIndex] || null;
+      }, [questions, currentQuestionIndex]);
+
+      const startDrill = () => {
+        let setOfQs = [];
+        if (difficulty === Difficulty.BASIC) {
+          setOfQs = Array.from({ length: 10 }, () => generateQuestion(EquationType.QUADRATIC, difficulty));
+        } else {
+          setOfQs = Array.from({ length: 10 }, () => {
+            const list = generateQuestionsSet(EquationType.QUADRATIC, difficulty);
+            return list[0];
+          });
+        }
+        setQuestions(setOfQs);
+        setCurrentQuestionIndex(0);
+        setCurrentStep(0);
+        setDrillScore(0);
+        setHistory(Array(10).fill(null));
+        setFeedback(null);
+        setJudgment(null);
+        setGameState('drill');
+      };
+
+      const checkAnswer = (selectedOpt) => {
+        if (feedback) return;
+        const sub = currentQuestion.subQuestions[currentStep];
+        const isCorrect = selectedOpt === sub.expectedAnswer;
+
+        if (isCorrect) {
+          setJudgment('correct');
+          setTimeout(() => {
+            setJudgment(null);
+            
+            const nextStep = currentStep + 1;
+            if (nextStep < currentQuestion.subQuestions.length) {
+              setCurrentStep(nextStep);
+            } else {
+              setHistory(prev => {
+                const updated = [...prev];
+                updated[currentQuestionIndex] = true;
+                return updated;
+              });
+              setDrillScore(prev => prev + 1);
+              
+              const localExplanation = getStaticExplanation(currentQuestion, currentStep);
+              setFeedback({ isCorrect: true, explanation: localExplanation });
+            }
+          }, 600);
+        } else {
+          setJudgment('incorrect');
+          setTimeout(() => {
+            setJudgment(null);
+            setHistory(prev => {
+              const updated = [...prev];
+              updated[currentQuestionIndex] = false;
+              return updated;
+            });
+            const localExplanation = getStaticExplanation(currentQuestion, currentStep);
+            setFeedback({ isCorrect: false, explanation: localExplanation });
+          }, 600);
+        }
+      };
+
+      const nextQuestion = () => {
+        setFeedback(null);
+        const nextIndex = currentQuestionIndex + 1;
+        if (nextIndex < 10) {
+          setCurrentQuestionIndex(nextIndex);
+          setCurrentStep(0);
+        } else {
+          setGameState('summary');
+        }
+      };
+
+      return (
+        <div className="h-screen bg-[#F8FAFC] text-[#1E293B] font-sans overflow-hidden flex flex-col bg-[radial-gradient(#E2E8F0_1px,transparent_1px)] [background-size:16px_16px]">
+          {/* Header */}
+          <header className="bg-white/70 backdrop-blur-md border-b border-slate-100/80 py-3.5 px-6 shrink-0 relative z-30">
+            <div className="max-w-4xl mx-auto flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                {gameState !== 'menu' && (
+                  <button 
+                    onClick={() => setGameState('menu')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-50 border border-slate-200 shadow-sm rounded-xl text-slate-600 hover:text-slate-900 bg-white transition-all mr-2 text-xs font-bold"
+                  >
+                    <SVGIcon.ArrowLeft size={14} />
+                    <span>メニューに戻る</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setGameState('menu')}>
+                  <div className="bg-gradient-to-tr from-indigo-500 to-blue-600 text-white p-1.5 rounded-xl shadow-sm shadow-indigo-100 flex items-center justify-center">
+                    <SVGIcon.Calculator size={18} />
+                  </div>
+                  <h1 className="text-base font-bold tracking-tight text-slate-900">
+                    解と係数の関係
+                  </h1>
+                </div>
+              </div>
+
+              {gameState === 'drill' && (
+                <div className="flex items-center gap-3 bg-slate-50/80 px-4 py-1.5 rounded-2xl border border-slate-100">
+                  <div className="flex gap-1">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={`w-4 h-1.5 rounded-full transition-all duration-300 ${i < currentQuestionIndex ? (history[i] ? 'bg-emerald-500' : 'bg-rose-500') : i === currentQuestionIndex ? 'bg-indigo-600 shadow-[0_0_8px_rgba(79,70,229,0.5)]' : 'bg-slate-200'}`} 
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-400">{currentQuestionIndex + 1}/10</span>
+                </div>
+              )}
+            </div>
+          </header>
+
+          {/* Main App Workspace */}
+          <main className="flex-1 overflow-hidden relative">
+            {/* Menu GameState */}
+            {gameState === 'menu' && (
+              <div className="fade-enter-active h-full flex flex-col items-center justify-center p-6 space-y-6">
+                <div className="text-center space-y-3">
+                  <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">10問トレーニング</h2>
+                  <p className="text-slate-500 text-sm font-medium">短時間で解と係数の関係をマスター</p>
+                </div>
+
+                <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl shadow-[0_10px_30px_rgba(148,163,184,0.06)] border border-slate-100/80 w-full max-w-sm space-y-6">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <SVGIcon.Settings2 size={12} className="text-indigo-500" /> 難易度設定
+                    </label>
+                    <div className="flex p-1 bg-slate-100/80 rounded-xl gap-1">
+                      <button 
+                        onClick={() => setDifficulty(Difficulty.BASIC)}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${difficulty === Difficulty.BASIC ? 'bg-white text-slate-900 shadow-sm font-bold' : 'hover:bg-white/50 text-slate-500'}`}
+                      >
+                        基本
+                      </button>
+                      <button 
+                        onClick={() => setDifficulty(Difficulty.ADVANCED)}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${difficulty === Difficulty.ADVANCED ? 'bg-white text-slate-900 shadow-sm font-bold' : 'hover:bg-white/50 text-slate-500'}`}
+                      >
+                        応用
+                      </button>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={startDrill}
+                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-2xl transition-all shadow-md hover:shadow-lg shadow-indigo-100/50 flex items-center justify-center gap-2 group text-sm active:scale-[0.99]"
+                  >
+                    ドリルを開始する
+                    <SVGIcon.ChevronRight size={18} className="translate-x-0 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+
+                <div className="max-w-sm w-full">
+                  <div className="bg-white/80 backdrop-blur-md p-5 rounded-2xl border border-slate-100/80 shadow-[0_4px_20px_rgba(148,163,184,0.04)] space-y-3.5 w-full">
+                    <div className="flex items-center gap-2 pb-1 border-b border-slate-100/50">
+                      <span className="w-1 h-3 bg-indigo-500 rounded-full" />
+                      <p className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">2次方程式の解の和と積</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col justify-between min-h-[4.5rem]">
+                        <span className="text-[9px] font-bold text-slate-400 block mb-1">解の和</span>
+                        <div className="flex justify-center flex-1 items-center">
+                          <MathView math="\alpha + \beta = -\frac{b}{a}" className="text-sm font-bold text-indigo-950" />
+                        </div>
+                      </div>
+                      <div className="p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col justify-between min-h-[4.5rem]">
+                        <span className="text-[9px] font-bold text-slate-400 block mb-1">解の積</span>
+                        <div className="flex justify-center flex-1 items-center">
+                          <MathView math="\alpha\beta = \frac{c}{a}" className="text-sm font-bold text-indigo-950" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Drill GameState */}
+            {gameState === 'drill' && currentQuestion && (
+              <div className="scale-enter-active h-full flex flex-col p-4 max-w-xl mx-auto w-full space-y-4">
+                <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-[0_12px_40px_rgba(148,163,184,0.06)] border border-slate-100/80 flex flex-col flex-1 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/40 flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                      <h3 className="text-xs font-bold text-slate-600">
+                        2次方程式の解を α, β とするとき、式の値を求めよ。
+                      </h3>
+                    </div>
+                    <div className="text-[10px] font-mono font-extrabold text-indigo-600 bg-indigo-50/80 px-2.5 py-1 rounded-lg">Q{currentQuestionIndex + 1}</div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+                    <div className="relative overflow-hidden bg-slate-50 border border-slate-100/70 rounded-2xl py-6 flex flex-col justify-center items-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] transition-all">
+                      <div className="absolute top-2 left-3.5 text-[8px] font-bold tracking-wider text-slate-400 font-sans uppercase">2次方程式</div>
+                      <MathView math={formatEquationText(currentQuestion)} block className="text-2xl font-sans font-semibold text-slate-800" />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4">
+                      {currentQuestion.subQuestions.length > 1 && (
+                        <div className="w-full flex items-center justify-center gap-1.5">
+                          {currentQuestion.subQuestions.map((_, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${idx === currentStep ? 'bg-indigo-600' : idx < currentStep ? 'bg-indigo-300' : 'bg-slate-100'}`}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="py-4 px-6 w-full bg-indigo-50/30 rounded-2xl border border-indigo-100/50 text-center min-h-[4.5rem] flex flex-col items-center justify-center relative overflow-hidden shadow-sm hover:bg-indigo-50/40 transition-all cursor-default">
+                        <div className="absolute top-1.5 left-3.5 text-[8px] font-bold text-indigo-500/80 tracking-wider uppercase">求める式の値</div>
+                        <div className="text-2xl font-bold text-indigo-950">
+                           <MathView math={currentQuestion.subQuestions[currentStep].expression} />
+                        </div>
+                      </div>
+                      
+                      {!feedback && (
+                        <div className="grid grid-cols-2 gap-3 w-full">
+                          {currentQuestion.subQuestions[currentStep].options.map((opt, i) => (
+                            <button
+                              key={i}
+                              onClick={() => checkAnswer(opt)}
+                              className="py-3.5 px-4 bg-white border border-slate-200/85 hover:border-indigo-500 hover:bg-indigo-50/30 rounded-2xl text-[17px] transition-all text-center shadow-[0_2px_8px_rgba(148,163,184,0.03)] hover:shadow-[0_4px_16px_rgba(99,102,241,0.06)] active:scale-[0.98] duration-200 flex items-center justify-center text-slate-800 font-semibold"
+                            >
+                              <MathView math={opt} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {feedback && (
+                      <div className="fade-enter-active p-5 rounded-2xl border bg-rose-50/40 border-rose-100 text-rose-950">
+                        <div className="flex items-center gap-2 mb-3">
+                          <SVGIcon.XCircle size={16} className="text-rose-600 stroke-[2.5]" />
+                          <h4 className="font-extrabold text-xs text-rose-950">公式・解法解説</h4>
+                        </div>
+                        <div className="prose prose-sm max-w-none text-[11px] text-slate-700 leading-relaxed overflow-x-auto max-h-[140px] overflow-y-auto pr-2 custom-scrollbar">
+                          <ExplanationView text={feedback.explanation || ''} />
+                        </div>
+                        <div className="mt-4 flex justify-end">
+                          <button 
+                            onClick={nextQuestion}
+                            className="px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white"
+                          >
+                            {currentQuestionIndex === 9 ? '結果を見る' : '次の問題へ'} 
+                            <SVGIcon.ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Summary GameState */}
+            {gameState === 'summary' && (
+              <div className="scale-enter-active h-full flex flex-col items-center justify-center p-6 space-y-8">
+                <div className="text-center space-y-4">
+                  <div className="relative inline-block">
+                    <div className="w-32 h-32 rounded-full border-4 border-indigo-50 flex items-center justify-center bg-white shadow-[0_12px_40px_rgba(99,102,241,0.12)] relative z-10 transition-all">
+                      <div className="text-center">
+                        <span className="text-5xl font-mono font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{drillScore}</span>
+                        <span className="text-xs text-slate-400 block mt-0.5 font-bold">/ 10 SCORE</span>
+                      </div>
+                    </div>
+                    <div className="absolute -top-1.5 -right-1.5 bg-gradient-to-tr from-amber-400 to-yellow-500 text-white p-2 rounded-full shadow-lg z-20 flex items-center justify-center">
+                      <SVGIcon.CheckCircle2 size={24} className="stroke-[2.5]" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">トレーニング完了！</h2>
+                    <p className="text-slate-500 text-sm font-medium">
+                      {drillScore === 10 ? 'パーフェクト！素晴らしい完成度です。' : 
+                       drillScore >= 7 ? 'いい点数です！もう一息です。' : 
+                       'お疲れ様でした。解説を復習してみましょう。'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full max-w-sm bg-white/70 backdrop-blur-md p-5 rounded-2xl border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] space-y-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center mb-1">各問題の結果</p>
+                  <div className="grid grid-cols-5 gap-2.5">
+                    {history.map((h, i) => (
+                      <div 
+                        key={i} 
+                        className={`h-10 rounded-xl border flex items-center justify-center font-extrabold text-xs transition-all ${h ? 'bg-emerald-50 border-emerald-100 text-emerald-700 shadow-[0_2px_4px_rgba(16,185,129,0.02)]' : 'bg-rose-50 border-rose-100 text-rose-700 shadow-[0_2px_4px_rgba(244,63,94,0.02)]'}`}
+                      >
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setGameState('menu')}
+                  className="px-8 py-4 bg-slate-900 hover:bg-slate-950 text-white font-bold rounded-2xl transition-all shadow-md flex items-center gap-2 group text-sm active:scale-[0.98] duration-200"
+                >
+                  メニューに戻る
+                  <SVGIcon.RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-700" />
+                </button>
+              </div>
+            )}
+          </main>
+
+          {/* Correct/Incorrect feedback overlay */}
+          {judgment && (
+            <div className="absolute inset-0 flex items-center justify-center z-[100] pointer-events-none fade-enter-active">
+              <div className={`text-[12rem] font-bold ${judgment === 'correct' ? 'text-green-500/80' : 'text-red-500/80'}`}>
+                {judgment === 'correct' ? '〇' : '×'}
+              </div>
+            </div>
+          )}
+
+          <footer className="py-3 px-6 text-center text-[10px] text-gray-300 bg-white border-t border-gray-100 shrink-0">
+             © 2016 - 2026 Drills
+          </footer>
+        </div>
+      );
+    }
+
+    // Bind React component inside root element
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>
