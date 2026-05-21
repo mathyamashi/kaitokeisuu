@@ -149,300 +149,427 @@
         const allowed = [-4, -3, -2, -1, 1, 2, 3, 4];
         const b = allowed[Math.floor(Math.random() * allowed.length)];
         const c = allowed[Math.floor(Math.random() * allowed.length)];
-        
+
         const expressions = [
-          { text: '\\alpha^2 + \\beta^2', calc: () => ({ n: b * b - 2 * c, d: 1 }) },
-          { text: '(\\alpha - \\beta)^2', calc: () => ({ n: b * b - 4 * c, d: 1 }) },
-          { text: '\\alpha^3 + \\beta^3', calc: () => ({ n: -b * (b * b - 3 * c), d: 1 }) },
+          { text: '\\alpha + \\beta', calc: () => ({ n: -b, d: a }) },
+          { text: '\\alpha \\beta', calc: () => ({ n: c, d: a }) },
+          { text: '\\alpha^2 + \\beta^2', calc: () => ({ n: b * b - 2 * a * c, d: a * a }) },
           { text: '\\frac{1}{\\alpha} + \\frac{1}{\\beta}', calc: () => ({ n: -b, d: c }) },
-          { text: '\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}', calc: () => ({ n: b * b - 2 * c, d: c }) },
-          { text: '(\\alpha + 1)(\\beta + 1)', calc: () => ({ n: c - b + 1, d: 1 }) },
-          { text: '\\alpha^2\\beta + \\alpha\\beta^2', calc: () => ({ n: -b * c, d: 1 }) },
-          { text: '\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2}', calc: () => ({ n: b * b - 2 * c, d: c * c }) }
+          { text: '(\\alpha - \\beta)^2', calc: () => ({ n: b * b - 4 * a * c, d: a * a }) },
+          { text: '\\alpha^2\\beta + \\alpha\\beta^2', calc: () => ({ n: -b * c, d: a * a }) },
+          { text: '(\\alpha + 1)(\\beta + 1)', calc: () => ({ n: a - b + c, d: a }) },
+          { text: '\\alpha^3 + \\beta^3', calc: () => ({ n: -b * (b * b - 3 * a * c), d: a * a * a }) },
+          { text: '\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}', calc: () => ({ n: b * b - 2 * a * c, d: a * c }) },
+          { text: '\\alpha^2\\beta^2', calc: () => ({ n: c * c, d: a * a }) },
         ];
 
-        const shuffled = expressions.sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, 3);
+        const basicExprs = [expressions[0], expressions[1]];
+        const advExprs = expressions.slice(2).sort(() => Math.random() - 0.5);
+        const finalExpressions = [...basicExprs, ...advExprs];
 
-        const subQuestions = [
-          generateSubQuestion({ text: '\\alpha + \\beta', calc: () => ({ n: -b, d: a }) }, a, b, c),
-          generateSubQuestion({ text: '\\alpha\\beta', calc: () => ({ n: c, d: a }) }, a, b, c),
-          ...selected.map(expr => generateSubQuestion(expr, a, b, c))
-        ];
-
-        return [{
-          id,
-          type: EquationType.QUADRATIC,
-          difficulty,
-          a, b, c,
-          subQuestions
-        }];
+        return finalExpressions.map((expr, index) => {
+          const subQ = generateSubQuestion(expr, a, b, c);
+          return {
+            id: `${id}_${index}`,
+            type: EquationType.QUADRATIC,
+            difficulty,
+            equationType: 'standard',
+            a,
+            b,
+            c,
+            subQuestions: [subQ],
+            explanationTemplate: `2次方程式 ${a === 1 ? '' : a}x^2 ${b >= 0 ? '+' : ''}${b}x ${c >= 0 ? '+' : ''}${c} = 0$ において、解と係数の関係より、$\\alpha + \\beta = -\\frac{b}{a}$, $\\alpha\\beta = \\frac{c}{a}$ です。`
+          };
+        });
       }
     }
 
     function generateQuestion(type, difficulty) {
       const id = Math.random().toString(36).substring(7);
-      const aChoices = [1, 1, 1, 2, 3];
-      const a = aChoices[Math.floor(Math.random() * aChoices.length)];
-      const allowed = [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5];
-      const b = allowed[Math.floor(Math.random() * allowed.length)];
-      const c = allowed[Math.floor(Math.random() * allowed.length)];
+      
+      let a = 1;
+      let b = 0;
+      let c = 0;
 
-      const subQuestions = [
-        generateSubQuestion({ text: '\\alpha + \\beta', calc: () => ({ n: -b, d: a }) }, a, b, c),
-        generateSubQuestion({ text: '\\alpha\\beta', calc: () => ({ n: c, d: a }) }, a, b, c)
+      const isAEqualToOne = Math.random() < 0.5;
+      if (isAEqualToOne) {
+        a = 1;
+        b = Math.floor(Math.random() * 12) - 6;
+        c = Math.floor(Math.random() * 12) - 6;
+        if (b === 0 && c === 0) c = 4;
+      } else {
+        a = [2, 3, 5][Math.floor(Math.random() * 3)];
+        b = Math.floor(Math.random() * 12) - 6;
+        c = Math.floor(Math.random() * 12) - 6;
+        if (b === 0 && c === 0) c = 3;
+      }
+
+      const subQuestions = [];
+
+      const baseExpressions = [
+        { text: '\\alpha + \\beta \\text{（和）}', calc: () => ({ n: -b, d: a }) },
+        { text: '\\alpha \\beta \\text{（積）}', calc: () => ({ n: c, d: a }) },
       ];
+      subQuestions.push(generateSubQuestion(baseExpressions[0], a, b, c));
+      subQuestions.push(generateSubQuestion(baseExpressions[1], a, b, c));
 
       return {
         id,
         type: EquationType.QUADRATIC,
         difficulty,
-        a, b, c,
-        subQuestions
+        equationType: 'standard',
+        a,
+        b,
+        c,
+        subQuestions,
+        explanationTemplate: `2次方程式 ${a === 1 ? '' : a}x^2 ${b >= 0 ? '+' : ''}${b}x ${c >= 0 ? '+' : ''}${c} = 0$ において、解と係数の関係より、$\\alpha + \\beta = -\\frac{b}{a}$, $\\alpha\\beta = \\frac{c}{a}$ です。`
       };
     }
 
-    // --- Math Rendering Component ---
-    function MathView({ math, block = false, className = "" }) {
-      const ref = useRef(null);
+    function formatEquationText(q) {
+      let aStr = q.a === 1 ? 'x^2' : q.a === -1 ? '-x^2' : `${q.a}x^2`;
+      let bStr = '';
+      if (q.b !== 0) {
+        bStr = q.b > 0 ? ` + ${q.b === 1 ? '' : q.b}x` : ` - ${Math.abs(q.b) === 1 ? '' : Math.abs(q.b)}x`;
+      }
+      let cStr = '';
+      if (q.c !== 0) {
+        cStr = q.c > 0 ? ` + ${q.c}` : ` - ${Math.abs(q.c)}`;
+      }
+      return `${aStr}${bStr}${cStr} = 0`.replace(/\s+/g, ' ').trim();
+    }
+
+    function getStaticExplanation(question, stepIndex) {
+      const { a, b, c } = question;
+      const subQ = question.subQuestions[stepIndex];
+      const expr = subQ.expression;
+      const expectedText = subQ.expectedAnswer;
+
+      const eqStr = formatEquationText(question);
+      const sumVal = formatRational(-b, a);
+      const prodVal = formatRational(c, a);
+
+      const baseRel = `2次方程式 $${eqStr}$ において、解と係数の関係より：\n` +
+        `- $\\alpha + \\beta = ${sumVal}$\n` +
+        `- $\\alpha\\beta = ${prodVal}$\n\n`;
+
+      let stepExp = '';
+
+      if (expr.includes('\\alpha + \\beta') || expr === '\\alpha + \\beta') {
+        stepExp = `求めるものは**和**：\n` +
+          `$$\\alpha + \\beta = -\\frac{b}{a} = -\\frac{${b}}{${a}} = ${sumVal}$$`;
+      } else if (expr.includes('\\alpha \\beta') || expr.includes('\\alpha\\beta') || expr === '\\alpha \\beta' || expr === '\\alpha\\beta') {
+        stepExp = `求めるものは**積**：\n` +
+          `$$\\alpha\\beta = \\frac{c}{a} = \\frac{${c}}{${a}} = ${prodVal}$$`;
+      } else if (expr === '\\alpha^2 + \\beta^2') {
+        stepExp = `対称式の変形公式：\n` +
+          `$$\\alpha^2 + \\beta^2 = (\\alpha + \\beta)^2 - 2\\alpha\\beta$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${sumVal}\\right)^2 - 2\\left(${prodVal}\\right) = ${expectedText}$$`;
+      } else if (expr === '\\frac{1}{\\alpha} + \\frac{1}{\\beta}') {
+        stepExp = `対称式の変形公式（通分します）：\n` +
+          `$$\\frac{1}{\\alpha} + \\frac{1}{\\beta} = \\frac{\\alpha + \\beta}{\\alpha\\beta}$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\frac{${sumVal}}{${prodVal}} = ${expectedText}$$`;
+      } else if (expr === '(\\alpha - \\beta)^2') {
+        stepExp = `対称式の変形公式：\n` +
+          `$$(\\alpha - \\beta)^2 = (\\alpha + \\beta)^2 - 4\\alpha\\beta$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${sumVal}\\right)^2 - 4\\left(${prodVal}\\right) = ${expectedText}$$`;
+      } else if (expr === '\\alpha^2\\beta + \\alpha\\beta^2') {
+        stepExp = `対称式の変形公式（因数分解します）：\n` +
+          `$$\\alpha^2\\beta + \\alpha\\beta^2 = \\alpha\\beta(\\alpha + \\beta)$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${prodVal}\\right)\\left(${sumVal}\\right) = ${expectedText}$$`;
+      } else if (expr === '(\\alpha + 1)(\\beta + 1)') {
+        stepExp = `式の展開公式：\n` +
+          `$$(\\alpha + 1)(\\beta + 1) = \\alpha\\beta + (\\alpha + \\beta) + 1$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${prodVal}\\right) + \\left(${sumVal}\\right) + 1 = ${expectedText}$$`;
+      } else if (expr === '\\alpha^3 + \\beta^3') {
+        stepExp = `対称式の変形公式：\n` +
+          `$$\\alpha^3 + \\beta^3 = (\\alpha + \\beta)^3 - 3\\alpha\\beta(\\alpha + \\beta)$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${sumVal}\\right)^3 - 3\\left(${prodVal}\\right)\\left(${sumVal}\\right) = ${expectedText}$$`;
+      } else if (expr === '\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}') {
+        stepExp = `対称式の変形公式（通分して変形します）：\n` +
+          `$$\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta} = \\frac{\\alpha^2 + \\beta^2}{\\alpha\\beta} = \\frac{(\\alpha + \\beta)^2 - 2\\alpha\\beta}{\\alpha\\beta}$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\frac{\\left(${sumVal}\\right)^2 - 2\\left(${prodVal}\\right)}{${prodVal}} = ${expectedText}$$`;
+      } else if (expr === '\\alpha^2\\beta^2') {
+        stepExp = `対称式の変形公式：\n` +
+          `$$\\alpha^2\\beta^2 = (\\alpha\\beta)^2$$\n\n` +
+          `値を代入して計算すると：\n` +
+          `$$\\left(${prodVal}\\right)^2 = ${expectedText}$$`;
+      }
+
+      return baseRel + stepExp;
+    }
+
+    // --- Components ---
+
+    // Dynamic KaTeX mathematical view component
+    const MathView = ({ math, block = false, className = "" }) => {
+      const containerRef = useRef(null);
+
       useEffect(() => {
-        if (ref.current) {
+        if (containerRef.current) {
           try {
-            katex.render(math, ref.current, {
+            katex.render(math, containerRef.current, {
               displayMode: block,
               throwOnError: false
             });
-          } catch (e) {
-            console.error(e);
+          } catch (err) {
+            console.error("KaTeX Error: ", err);
           }
         }
       }, [math, block]);
-      return <span ref={ref} className={className} />;
-    }
 
-    // --- Markdown/Static Explanation View (HTML-safe replacements) ---
-    function ExplanationView({ text }) {
-      const ref = useRef(null);
+      return <span ref={containerRef} className={className} />;
+    };
+
+    // Auto rendering formula & markup inside static explanations
+    const ExplanationView = ({ text }) => {
+      const elRef = useRef(null);
+
       useEffect(() => {
-        if (ref.current) {
-          renderMathInElement(ref.current, {
-            delimiters: [
-              { left: '$$', right: '$$', display: true },
-              { left: '$', right: '$', display: false }
-            ],
-            throwOnError: false
-          });
+        if (elRef.current) {
+          // Convert plain lines and simple markers to HTML
+          elRef.current.innerHTML = text
+            .replace(/\n\n/g, '<p class="my-2"></p>')
+            .replace(/\n/g, '<br/>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          
+          try {
+            renderMathInElement(elRef.current, {
+              delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "$", right: "$", display: false }
+              ],
+              throwOnError: false
+            });
+          } catch (err) {
+            console.error("KaTeX auto-render error: ", err);
+          }
         }
       }, [text]);
 
-      const formatted = text.split('\n').map((line, i) => {
-        if (line.startsWith('### ')) {
-          return <h4 key={i} className="font-extrabold text-[#111827] mt-3 mb-1 text-xs">{line.replace('### ', '')}</h4>;
-        }
-        return <p key={i} className="my-1.5 leading-relaxed text-slate-700 text-[11px]">{line}</p>;
-      });
+      return <div ref={elRef} className="prose prose-sm max-w-none text-[11px] text-gray-700 leading-relaxed overflow-x-auto max-h-[140px] overflow-y-auto pr-2 custom-scrollbar" />;
+    };
 
-      return <div ref={ref} className="space-y-1">{formatted}</div>;
-    }
-
-    // --- Utility Icons as Visual SVG Components ---
+    // Inline SVG Icon Collection (No external dependency)
     const SVGIcon = {
-      ArrowLeft: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+      Calculator: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 18} height={props.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <rect width="16" height="20" x="4" y="2" rx="2" />
+          <line x1="8" x2="16" y1="6" y2="6" />
+          <line x1="16" x2="16" y1="14" y2="18" />
+          <path d="M16 10h.01" />
+          <path d="M12 10h.01" />
+          <path d="M8 10h.01" />
+          <path d="M12 14h.01" />
+          <path d="M8 14h.01" />
+          <path d="M12 18h.01" />
+          <path d="M8 18h.01" />
+        </svg>
       ),
-      Calculator: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+      ChevronRight: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 18} height={props.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
       ),
-      Settings2: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+      RefreshCcw: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 18} height={props.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+          <path d="M16 16h5v5" />
+        </svg>
       ),
-      ChevronRight: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
+      CheckCircle2: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 18} height={props.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
       ),
-      CheckCircle2: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      XCircle: (props) => (
+        <svg xmlns="http://www.w3.org/2050/svg" width={props.size || 18} height={props.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="m15 9-6 6" />
+          <path d="m9 9 6 6" />
+        </svg>
       ),
-      XCircle: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+      Lightbulb: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 16} height={props.size || 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1 .5 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" />
+          <path d="M9 18h6" />
+          <path d="M10 22h4" />
+        </svg>
       ),
-      RefreshCcw: ({ size = 16, className = "" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      ArrowLeft: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 14} height={props.size || 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="m12 19-7-7 7-7" />
+          <path d="M19 12H5" />
+        </svg>
+      ),
+      Settings2: (props) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 12} height={props.size || 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+          <path d="M20 7h-9" />
+          <path d="M14 17H5" />
+          <circle cx="17" cy="17" r="3" />
+          <circle cx="7" cy="7" r="3" />
+        </svg>
       )
     };
 
-    function formatEquationText(q) {
-      const termA = q.a === 1 ? 'x^2' : q.a === -1 ? '-x^2' : `${q.a}x^2`;
-      const termB = q.b === 0 ? '' : q.b === 1 ? '+ x' : q.b === -1 ? '- x' : q.b > 0 ? `+ ${q.b}x` : `- ${Math.abs(q.b)}x`;
-      const termC = q.c === 0 ? '' : q.c > 0 ? `+ ${q.c}` : `- ${Math.abs(q.c)}`;
-      return `${termA} ${termB} ${termC} = 0`;
-    }
-
-    function getStaticExplanation(q, step) {
-      const { a, b, c } = q;
-      const baseRel = `2次方程式 $${formatEquationText(q)}$ において、解と係数の関係より：\n` +
-        `$\\alpha + \\beta = -\\frac{b}{a} = -\\frac{${b}}{${a}} = ${formatRational(-b, a)}$\n` +
-        `$\\alpha\\beta = \\frac{c}{a} = ${formatRational(c, a)}$ です。\n\n`;
-
-      const currentSub = q.subQuestions[step];
-      const exprText = currentSub.expression;
-      const ansVal = currentSub.expectedAnswer;
-
-      if (exprText.includes('\\alpha^2 + \\beta^2')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `$\\alpha^2 + \\beta^2 = (\\alpha + \\beta)^2 - 2\\alpha\\beta$ を利用します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `公式にそれぞれ値を代入します：\n` +
-          `$= (${formatRational(-b, a)})^2 - 2 \\times (${formatRational(c, a)})$\n` +
-          `$= ${formatRational(b*b, a*a)} - ${formatRational(2*c, a)}$\n` +
-          `$= ${ansVal}$`;
-      }
-      if (exprText.includes('(\\alpha - \\beta)^2')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `$(\\alpha - \\beta)^2 = (\\alpha + \\beta)^2 - 4\\alpha\\beta$ を利用します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `公式に値を代入し計算します：\n` +
-          `$= (${formatRational(-b, a)})^2 - 4 \\times (${formatRational(c, a)})$\n` +
-          `$= ${formatRational(b*b, a*a)} - ${formatRational(4*c, a)}$\n` +
-          `$= ${ansVal}$`;
-      }
-      if (exprText.includes('\\alpha^3 + \\beta^3')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `$\\alpha^3 + \\beta^3 = (\\alpha + \\beta)^3 - 3\\alpha\\beta(\\alpha + \\beta)$ を利用します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `求めた和と積をそれぞれ代入します：\n` +
-          `$= (${formatRational(-b, a)})^3 - 3 \\times (${formatRational(c, a)}) \\times (${formatRational(-b, a)})$\n` +
-          `$= ${ansVal}$`;
-      }
-      if (exprText.includes('\\frac{1}{\\alpha} + \\frac{1}{\\beta}')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `分母をそろえるために通分（共通の分母にする）を行います：\n` +
-          `$\\frac{1}{\\alpha} + \\frac{1}{\\beta} = \\frac{\\alpha + \\beta}{\\alpha\\beta}$ と変形できます。\n\n` +
-          `### 【計算プロセス】\n` +
-          `分数の形にして計算します：\n` +
-          `$= (${formatRational(-b, a)}) \\div (${formatRational(c, a)}) = ${ansVal}$`;
-      }
-      if (exprText.includes('\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta}')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `通分して変形を行います：\n` +
-          `$\\frac{\\beta}{\\alpha} + \\frac{\\alpha}{\\beta} = \\frac{\\alpha^2 + \\beta^2}{\\alpha\\beta} = \\frac{(\\alpha + \\beta)^2 - 2\\alpha\\beta}{\\alpha\\beta}$ と変形します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `和と積の値をそれぞれ代入して計算すると、値は $${ansVal}$ となります。`;
-      }
-      if (exprText.includes('(\\alpha + 1)(\\beta + 1)')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `式を展開して和と積の形を作ります：\n` +
-          `$(\\alpha + 1)(\\beta + 1) = \\alpha\\beta + (\\alpha + \\beta) + 1$ と展開します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `数値を代入します：\n` +
-          `$= (${formatRational(c, a)}) + (${formatRational(-b, a)}) + 1$\n` +
-          `$= ${ansVal}$`;
-      }
-      if (exprText.includes('\\alpha^2\\beta + \\alpha\\beta^2')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `共通の因数 $\\alpha\\beta$ でくくり出します：\n` +
-          `$\\alpha^2\\beta + \\alpha\\beta^2 = \\alpha\\beta(\\alpha + \\beta)$ と因数分解します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `積と和の値を代入してかけ合わせます：\n` +
-          `$= (${formatRational(c, a)}) \\times (${formatRational(-b, a)}) = ${ansVal}$`;
-      }
-      if (exprText.includes('\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2}')) {
-        return baseRel + `### 【式変形の公式】\n` +
-          `通分します：\n` +
-          `$\\frac{1}{\\alpha^2} + \\frac{1}{\\beta^2} = \\frac{\\alpha^2 + \\beta^2}{(\\alpha\\beta)^2} = \\frac{(\\alpha+\\beta)^2 - 2\\alpha\\beta}{(\\alpha\\beta)^2}$ と変形します。\n\n` +
-          `### 【計算プロセス】\n` +
-          `値を代入し計算を整理すると、値は $${ansVal}$ になります。`;
-      }
-
-      // Default formula-bound feedback fallback
-      return baseRel + `### 【解説】\n` +
-        `求める値は和 $\\alpha + \\beta = ${formatRational(-b, a)}$ と、積 $\\alpha\\beta =  ${formatRational(c, a)}$ を式変形に適用して算出します。\n` +
-        `正解は $${ansVal}$ です。`;
-    }
-
-    // --- Main Application UI ---
+    // --- Main Application Component ---
     function App() {
-      const [gameState, setGameState] = useState('menu'); // 'menu' | 'drill' | 'summary'
+      const [gameState, setGameState] = useState('menu');
       const [difficulty, setDifficulty] = useState(Difficulty.BASIC);
-      const [questions, setQuestions] = useState([]);
+      const [questionsSet, setQuestionsSet] = useState([]);
       const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
       const [currentStep, setCurrentStep] = useState(0);
-      const [drillScore, setDrillScore] = useState(0);
-      const [history, setHistory] = useState([]);
+      const [userAnswers, setUserAnswers] = useState([]);
       const [feedback, setFeedback] = useState(null);
-      const [judgment, setJudgment] = useState(null); // 'correct' | 'incorrect' | null
+      const [drillScore, setDrillScore] = useState(0);
+      const [judgment, setJudgment] = useState(null);
+      const [history, setHistory] = useState(Array(10).fill(null));
+      const autoAdvanceTimeoutRef = useRef(null);
 
-      const currentQuestion = useMemo(() => {
-        return questions[currentQuestionIndex] || null;
-      }, [questions, currentQuestionIndex]);
+      useEffect(() => {
+        return () => {
+          if (autoAdvanceTimeoutRef.current) {
+            clearTimeout(autoAdvanceTimeoutRef.current);
+          }
+        };
+      }, []);
 
       const startDrill = () => {
-        let setOfQs = [];
-        if (difficulty === Difficulty.BASIC) {
-          setOfQs = Array.from({ length: 10 }, () => generateQuestion(EquationType.QUADRATIC, difficulty));
-        } else {
-          setOfQs = Array.from({ length: 10 }, () => {
-            const list = generateQuestionsSet(EquationType.QUADRATIC, difficulty);
-            return list[0];
-          });
+        if (autoAdvanceTimeoutRef.current) {
+          clearTimeout(autoAdvanceTimeoutRef.current);
+          autoAdvanceTimeoutRef.current = null;
         }
-        setQuestions(setOfQs);
+        const qSet = generateQuestionsSet(EquationType.QUADRATIC, difficulty);
+        setQuestionsSet(qSet);
         setCurrentQuestionIndex(0);
         setCurrentStep(0);
+        setUserAnswers([]);
         setDrillScore(0);
         setHistory(Array(10).fill(null));
         setFeedback(null);
-        setJudgment(null);
         setGameState('drill');
       };
 
-      const checkAnswer = (selectedOpt) => {
-        if (feedback) return;
-        const sub = currentQuestion.subQuestions[currentStep];
-        const isCorrect = selectedOpt === sub.expectedAnswer;
-
-        if (isCorrect) {
-          setJudgment('correct');
-          setTimeout(() => {
-            setJudgment(null);
-            
-            const nextStep = currentStep + 1;
-            if (nextStep < currentQuestion.subQuestions.length) {
-              setCurrentStep(nextStep);
-            } else {
-              setHistory(prev => {
-                const updated = [...prev];
-                updated[currentQuestionIndex] = true;
-                return updated;
-              });
-              setDrillScore(prev => prev + 1);
-              
-              const localExplanation = getStaticExplanation(currentQuestion, currentStep);
-              setFeedback({ isCorrect: true, explanation: localExplanation });
-            }
-          }, 600);
+      const nextQuestion = () => {
+        if (autoAdvanceTimeoutRef.current) {
+          clearTimeout(autoAdvanceTimeoutRef.current);
+          autoAdvanceTimeoutRef.current = null;
+        }
+        if (currentQuestionIndex < 9) {
+          setCurrentQuestionIndex(prev => prev + 1);
+          setCurrentStep(0);
+          setUserAnswers([]);
+          setFeedback(null);
         } else {
-          setJudgment('incorrect');
-          setTimeout(() => {
-            setJudgment(null);
-            setHistory(prev => {
-              const updated = [...prev];
-              updated[currentQuestionIndex] = false;
-              return updated;
-            });
-            const localExplanation = getStaticExplanation(currentQuestion, currentStep);
-            setFeedback({ isCorrect: false, explanation: localExplanation });
-          }, 600);
+          setGameState('summary');
         }
       };
 
-      const nextQuestion = () => {
-        setFeedback(null);
-        const nextIndex = currentQuestionIndex + 1;
-        if (nextIndex < 10) {
-          setCurrentQuestionIndex(nextIndex);
-          setCurrentStep(0);
+      const currentQuestion = questionsSet[currentQuestionIndex];
+
+      const checkAnswer = async (selected) => {
+        if (!currentQuestion || judgment || feedback) return;
+        
+        const subQ = currentQuestion.subQuestions[currentStep];
+        const isStepCorrect = selected === subQ.expectedAnswer.toString();
+
+        setJudgment(isStepCorrect ? 'correct' : 'incorrect');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        setJudgment(null);
+
+        if (feedback) return;
+
+        const newAnswers = [...userAnswers, selected];
+        setUserAnswers(newAnswers);
+
+        if (isStepCorrect) {
+          if (currentStep < currentQuestion.subQuestions.length - 1) {
+            setCurrentStep(prev => prev + 1);
+          } else {
+            const allCorrect = currentQuestion.subQuestions.every((sq, idx) => {
+              const ans = idx === currentStep ? selected : userAnswers[idx];
+              return ans === sq.expectedAnswer.toString();
+            });
+
+            if (allCorrect) {
+              setDrillScore(prev => prev + 1);
+            }
+
+            setHistory(prev => {
+              const nextHist = [...prev];
+              nextHist[currentQuestionIndex] = allCorrect;
+              return nextHist;
+            });
+
+            if (allCorrect) {
+              nextQuestion();
+            } else {
+              const localExplanation = getStaticExplanation(currentQuestion, currentStep);
+              setFeedback({ isCorrect: false, explanation: localExplanation });
+            }
+          }
         } else {
-          setGameState('summary');
+          setHistory(prev => {
+            const nextHist = [...prev];
+            nextHist[currentQuestionIndex] = false;
+            return nextHist;
+          });
+
+          const localExplanation = getStaticExplanation(currentQuestion, currentStep);
+          setFeedback({ isCorrect: false, explanation: localExplanation });
+        }
+      };
+
+      const formatEquation = (q) => {
+        if (q.type === EquationType.QUADRATIC) {
+          let aStr = '';
+          if (q.a === 1) aStr = 'x^2';
+          else if (q.a === -1) aStr = '-x^2';
+          else aStr = `${q.a}x^2`;
+
+          let bStr = '';
+          if (q.b !== 0) {
+            const sign = q.b > 0 ? '+' : '-';
+            const coeff = Math.abs(q.b) === 1 ? '' : Math.abs(q.b).toString();
+            bStr = ` ${sign} ${coeff}x`;
+          }
+
+          const cStr = q.c === 0 ? '' : ` ${q.c > 0 ? '+' : '-'} ${Math.abs(q.c)}`;
+          
+          return `${aStr}${bStr}${cStr} = 0`.replace(/\s+/g, ' ').trim();
+        } else {
+          let aStr = '';
+          if (q.a === 1) aStr = 'x^3';
+          else if (q.a === -1) aStr = '-x^3';
+          else aStr = `${q.a}x^3`;
+
+          let bStr = '';
+          if (q.b !== 0) {
+            const sign = q.b > 0 ? '+' : '-';
+            const coeff = Math.abs(q.b) === 1 ? '' : Math.abs(q.b).toString();
+            bStr = ` ${sign} ${coeff}x^2`;
+          }
+
+          let cStr = '';
+          if (q.c !== 0) {
+            const sign = q.c > 0 ? '+' : '-';
+            const coeff = Math.abs(q.c) === 1 ? '' : Math.abs(q.c).toString();
+            cStr = ` ${sign} ${coeff}x`;
+          }
+
+          const dStr = q.d === 0 ? '' : ` ${q.d > 0 ? '+' : '-'} ${Math.abs(q.d)}`;
+
+          return `${aStr}${bStr}${cStr}${dStr} = 0`.replace(/\s+/g, ' ').trim();
         }
       };
 
@@ -470,9 +597,8 @@
                   </h1>
                 </div>
               </div>
-
               {gameState === 'drill' && (
-                <div className="flex items-center gap-3 bg-slate-50/80 px-4 py-1.5 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-4">
                   <div className="flex gap-1">
                     {Array.from({ length: 10 }).map((_, i) => (
                       <div 
@@ -487,7 +613,6 @@
             </div>
           </header>
 
-          {/* Main App Workspace */}
           <main className="flex-1 overflow-hidden relative">
             {/* Menu GameState */}
             {gameState === 'menu' && (
